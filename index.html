@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Raft 共识过程可视化器</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <h1>Raft 共识过程可视化器</h1>
+    </div>
+    <div class="cluster-controls">
+      <label>节点数
+        <select id="nodeCount">
+          <option value="3">3</option>
+          <option value="5" selected>5</option>
+          <option value="7">7</option>
+        </select>
+      </label>
+      <label>速度
+        <select id="speed">
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="autoSnapshot" checked /> 自动压缩快照</label>
+      <button id="btnPause" class="btn primary">暂停</button>
+      <button id="btnReset" class="btn">重置集群</button>
+    </div>
+  </header>
+
+  <section class="toolbar">
+    <div class="toolbar-group">
+      <span class="group-title">客户端</span>
+      <input id="cmdKey" type="text" placeholder="key" value="x" />
+      <input id="cmdValue" type="text" placeholder="value" value="1" />
+      <button id="btnSet" class="btn">SET</button>
+      <button id="btnDelete" class="btn ghost">DELETE</button>
+    </div>
+    <div class="toolbar-group">
+      <span class="group-title">网络分区</span>
+      <button id="btnSplitMinority" class="btn danger">隔离 1 节点</button>
+      <button id="btnSplitHalf" class="btn danger">对半分区</button>
+      <button id="btnHeal" class="btn">恢复网络</button>
+    </div>
+    <div class="toolbar-group hint">
+      <span>提示：先点节点卡片选中再操作；对半分区（1v2 / 2v3 / 3v4）下仅多数派侧可选主，少数派 Leader 会在 2000ms 内主动降级。</span>
+    </div>
+  </section>
+
+  <section class="status-strip" id="statusStrip"></section>
+
+  <main class="main-grid">
+    <section class="nodes-wrap">
+      <div class="section-head">
+        <h2>节点状态</h2>
+        <div id="selectedHint" class="selected-hint">未选中节点</div>
+      </div>
+      <div class="selected-actions toolbar-group">
+        <span class="group-title">针对选中节点</span>
+        <button id="btnKill" class="btn danger-sm">宕机</button>
+        <button id="btnRestart" class="btn">恢复</button>
+        <button id="btnIsolate" class="btn danger-sm">隔离</button>
+        <button id="btnUnisolate" class="btn">取消隔离</button>
+        <button id="btnCompact" class="btn">压缩快照</button>
+        <label class="inline-latency">延迟
+          <input id="nodeLatency" type="number" min="0" max="5000" step="25" value="25" /> ms
+          <button id="btnApplyLatency" class="btn">应用</button>
+        </label>
+      </div>
+      <div id="nodes" class="nodes"></div>
+    </section>
+
+    <aside class="side-wrap">
+      <div class="panel">
+        <div class="section-head">
+          <h2>RPC 消息</h2>
+          <button id="btnClearRpc" class="btn tiny">清空</button>
+        </div>
+        <div id="rpcLog" class="rpc-log"></div>
+      </div>
+      <div class="panel">
+        <div class="section-head">
+          <h2>集群事件</h2>
+        </div>
+        <div id="eventLog" class="event-log"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="legend">
+    <span><i class="dot leader"></i>Leader</span>
+    <span><i class="dot candidate"></i>Candidate</span>
+    <span><i class="dot follower"></i>Follower</span>
+    <span><i class="dot down"></i>宕机</span>
+    <span><i class="badge committed"></i>已提交</span>
+    <span><i class="badge uncommitted"></i>未提交</span>
+    <span><i class="badge snap"></i>快照条目</span>
+    <span class="legend-note">参数：心跳 650ms · 选举超时 2300–3700ms · 多数派失联 2000ms 自动降级（防双 Leader）· 快照阈值 5</span>
+  </footer>
+
+  <script src="js/raft-config.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/raft.js"></script>
+  <script src="js/sim.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
