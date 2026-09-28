@@ -262,9 +262,10 @@
     appendLocalEntry(command) {
       const index = this.lastLogIndex + 1;
       const entry = makeEntry(this.currentTerm, command);
-      this.log.push(Object.assign({ index, term: this.currentTerm }, entry));
+      const stored = Object.assign({ index, term: this.currentTerm }, entry);
+      this.log.push(stored);
       this.matchIndex[this.id] = this.lastLogIndex;
-      return entry;
+      return stored;
     },
 
     clientCommand(command, now) {
@@ -281,11 +282,22 @@
       this.bus.emitNode(
         this.id,
         'client',
-        `客户端命令追加为日志 #${entry.index}（term ${entry.term}）`,
+        `客户端命令追加为日志 #${entry.index}（term ${entry.term}），等待多数派提交`,
         now
       );
       this.broadcastAppendEntries(now, true);
-      return { ok: true, index: entry.index };
+      // 绝不能在此刻声称"提交成功"：只有多数派复制并推进 commitIndex 后才算确认。
+      // 若本 Leader 处于少数派分区，该日志可能永远不会提交，并会在愈合后被新
+      // Leader 覆盖截断 —— 因此返回 pending（挂起等待），由调用方跟踪终态。
+      return {
+        ok: true,
+        pending: true,
+        committed: false,
+        index: entry.index,
+        term: entry.term,
+        uid: entry.uid,
+        message: `已受理为日志 #${entry.index}，等待多数派提交确认`,
+      };
     },
 
     entriesForPeer(peer) {

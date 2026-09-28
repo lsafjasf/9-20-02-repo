@@ -11,7 +11,7 @@
 - 集群规模：3 / 5 / 7 节点在线切换；仿真速度 0.5×–4×、暂停/继续、重置
 - 节点操作（点卡片选中后）：手动宕机、恢复、单独隔离、取消隔离、设置双向链路延迟、手动快照压缩
 - 网络分区：隔离单节点（1 vs 多数派）、对半分区（1v2 / 2v3 / 3v4）、一键恢复
-- 客户端：向 Leader 提交 `SET` / `DELETE` 命令；无 Leader 时被拒绝并提示重定向
+- 客户端：向 Leader 提交 `SET` / `DELETE` 命令；无 Leader 时被拒绝并提示重定向；受理后进入 pending，**只有多数派提交（commitIndex 推进）才确认成功**——少数派旧 Leader 不会假确认，未提交即被覆盖的写入会明确标记失败并可安全重试
 - 完整 Raft 实现：
   - Leader Election：随机选举超时、term、votedFor、多数票、日志新旧判断（lastLogTerm/lastLogIndex）
   - Heartbeat：固定间隔空 AppendEntries
@@ -29,7 +29,7 @@
 - `js/raft.js`：Raft 节点状态机
 - `js/sim.js`：仿真时钟与总线
 - `js/ui.js`：渲染与交互
-- `test/smoke.js`、`test/chaos.js`：Node 正确性测试（`node test/smoke.js`）
+- `test/smoke.js`、`test/chaos.js`、`test/partition-write.js`：Node 正确性测试（`node test/smoke.js` 等）；`partition-write.js` 复现并回归「少数派分区写入 → 愈合 → 状态机为空」路径
 
 ## 关键时序参数
 

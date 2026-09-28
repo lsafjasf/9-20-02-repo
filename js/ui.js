@@ -199,7 +199,9 @@
         ? { type: 'set', key, value: $('cmdValue').value }
         : { type: 'delete', key };
       const result = sim.submitCommand(command);
-      if (!result.ok && result.redirect == null) flashHint(result.error || '提交失败');
+      if (result.ok && result.pending)
+        flashHint(`已受理为日志 #${result.index}，等待多数派提交确认（结果见事件流）`);
+      else if (!result.ok && result.redirect == null) flashHint(result.error || '提交失败');
       else if (!result.ok) flashHint('当前节点不是 Leader，已尝试转发（Leader: ' + (result.redirect == null ? '未知' : result.redirect) + '）');
     }
 

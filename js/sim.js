@@ -24,6 +24,7 @@
       this.events = [];
       this.rpcs = [];
       this.seq = 0;
+      this.pendingCommands = [];
       this.changeListeners = [];
       this.network = new global.Network([], this.rng);
       this.nodes = {};
@@ -59,6 +60,7 @@
       this.events = [];
       this.rpcs = [];
       this.seq = 0;
+      this.pendingCommands = [];
       const bus = this.makeBus();
       ids.forEach((id) => {
         const peers = ids.filter((other) => other !== id);
@@ -221,6 +223,19 @@
       }
       if (!target) return { ok: false, error: '所有节点均宕机' };
       const result = target.clientCommand(command, this.time);
+      if (result.ok && result.pending) {
+        // 登记挂起命令：只有多数派提交才算确认；被新 Leader 覆盖则明确判负
+        this.pendingCommands.push({
+          uid: result.uid,
+          nodeId: target.id,
+          index: result.index,
+          term: result.term,
+          command,
+          status: 'pending',
+          reason: null,
+          submittedAt: this.time,
+        });
+      }
       if (!result.ok && result.redirect == null) {
         this.events.push({
           seq: this.nextSeq(),
@@ -231,6 +246,55 @@
         });
       }
       return result;
+    }
+
+    commandStatus(uid) {
+      if (uid == null) return null;
+      return this.pendingCommands.find((rec) => rec.uid === uid) || null;
+    }
+
+    // 每个 tick 结算挂起中的客户端命令：
+    // - 任一节点 commitIndex 覆盖该日志且 term 相符 -> committed（真正确认）
+    // - 原 Leader 已下台且本地该位置被新 Leader 覆盖 -> lost（明确失败，可安全重试）
+    resolvePendingCommands() {
+      this.pendingCommands.forEach((rec) => {
+        if (rec.status !== 'pending') return;
+        const committed = this.nodeOrder.some((id) => {
+          const node = this.nodes[id];
+          return (
+            node.commitIndex >= rec.index && node.termAt(rec.index) === rec.term
+          );
+        });
+        if (committed) {
+          rec.status = 'committed';
+          rec.reason = '已获多数派复制并提交';
+          this.events.push({
+            seq: this.nextSeq(),
+            time: this.time,
+            kind: 'client-commit',
+            nodeId: rec.nodeId,
+            text: `客户端命令 #${rec.index} 获多数派提交，确认成功`,
+          });
+          this.onCommit(rec);
+          return;
+        }
+        const origin = this.nodes[rec.nodeId];
+        const overwritten =
+          origin.role !== 'leader' && origin.termAt(rec.index) !== rec.term;
+        if (overwritten) {
+          rec.status = 'lost';
+          rec.reason = `日志 #${rec.index} 未获多数派提交，已被新 Leader 覆盖截断`;
+          this.events.push({
+            seq: this.nextSeq(),
+            time: this.time,
+            kind: 'client-lost',
+            nodeId: rec.nodeId,
+            text:
+              `客户端命令 #${rec.index} 未提交即被新 Leader 覆盖，` +
+              '明确失败（客户端从未收到成功确认，可安全重试）',
+          });
+        }
+      });
     }
 
     compactNode(id) {
@@ -261,6 +325,7 @@
           }
         );
       }
+      this.resolvePendingCommands();
       this.emitChange();
     }
 
@@ -296,5 +361,4 @@
   global.Sim = Sim;
   if (typeof module !== 'undefined' && module.exports) module.exports = { Sim };
 })(typeof window !== 'undefined' ? window : globalThis);
-
 

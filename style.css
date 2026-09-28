@@ -266,6 +266,8 @@ select:focus, input:focus { border-color: var(--accent); }
 .event-item.kind-snapshot { border-left: 3px solid var(--snap); }
 .event-item.kind-client, .event-item.kind-apply { border-left: 3px solid var(--accent); }
 .event-item.kind-client-fail { border-left: 3px solid var(--danger); }
+.event-item.kind-client-commit { border-left: 3px solid var(--leader); }
+.event-item.kind-client-lost { border-left: 3px solid var(--danger); }
 .event-item.kind-system { border-left: 3px solid var(--follower); }
 
 .legend {
