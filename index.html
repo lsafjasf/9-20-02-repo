@@ -21,6 +21,11 @@
       </select>
     </label>
     <button id="restartBtn" class="btn">↻ 重置集群</button>
+    <label>种子
+      <input id="seedInput" type="text" placeholder="留空=随机" spellcheck="false"
+             style="width:110px" title="填入种子后点「重置集群」即可完整重放同一次运行">
+    </label>
+    <span class="clock">当前 seed <b id="seedVal">-</b></span>
     <label>速度
       <select id="speed">
         <option value="0.5">0.5×</option>

@@ -19,12 +19,16 @@
   // ---------------- 集群初始化 ----------------
   function rebuild() {
     const size = parseInt($('#nodeCount').value, 10);
+    const seedInput = $('#seedInput');
+    RAFT.setSeed(seedInput.value.trim() === '' ? undefined : seedInput.value.trim());
     RAFT.resetClock();
     cluster = new RAFT.Cluster(size);
     eventCursor = 0;
     rpcBody.innerHTML = '';
     buildCards();
-    cluster.logEvent('sys', '集群初始化：' + size + ' 个节点，多数派 = ' + cluster.majority());
+    $('#seedVal').textContent = RAFT.getSeed();
+    cluster.logEvent('sys', '集群初始化：' + size + ' 个节点，多数派 = ' + cluster.majority() +
+      '，seed = ' + RAFT.getSeed());
   }
 
   // ---------------- 主循环（真实时间 → 模拟时间） ----------------

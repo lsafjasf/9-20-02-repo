@@ -20,6 +20,43 @@
   let queue = [];
   let timerSeq = 1;
 
+  // ---------------- 可注入随机源 ----------------
+  // mulberry32：小巧的确定性 PRNG。
+  // 默认种子取自 Math.random()（行为与之前一致）；
+  // 审计/重放时调用 RAFT.setSeed(seed) 即可让同 seed 的事件序列逐条一致。
+  function hashSeed(seed) {
+    const s = String(seed);
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  let rngState = 0;
+  let currentSeed = null;
+
+  function setSeed(seed) {
+    if (seed === undefined || seed === null || seed === '') {
+      seed = Math.floor(Math.random() * 0xffffffff);
+    }
+    currentSeed = seed;
+    rngState = hashSeed(seed);
+  }
+
+  function getSeed() { return currentSeed; }
+
+  function random() {
+    rngState = (rngState + 0x6D2B79F5) >>> 0;
+    let t = rngState;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+
+  setSeed();  // 默认仍然随机
+
   function schedule(delayMs, fn) {
     const ev = { id: timerSeq++, time: now + Math.max(0, delayMs), fn: fn, dead: false };
     queue.push(ev);
@@ -46,7 +83,7 @@
   }
 
   function electionTimeout() {
-    return CFG.ELECTION_MIN + Math.random() * (CFG.ELECTION_MAX - CFG.ELECTION_MIN);
+    return CFG.ELECTION_MIN + random() * (CFG.ELECTION_MAX - CFG.ELECTION_MIN);
   }
 
   // ---------------- 集群 ----------------
@@ -635,8 +672,10 @@
     schedule: schedule,
     tick: tick,
     resetClock: resetClock,
-    currentTime: currentTime
+    currentTime: currentTime,
+    setSeed: setSeed,
+    getSeed: getSeed,
+    random: random
   };
 })();
-
 
