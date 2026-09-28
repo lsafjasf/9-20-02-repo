@@ -26,7 +26,7 @@
     return ev;
   }
   function cancel(ev) { if (ev) ev.dead = true; }
-  function resetClock() { now = 0; queue = []; }
+  function resetClock() { now = 0; queue = []; timerSeq = 1; }
   function currentTime() { return now; }
 
   function tick(deltaMs) {
@@ -45,8 +45,28 @@
     now = horizon;
   }
 
+  // ---------------- 可注入随机源 ----------------
+  // 默认使用 Math.random（非确定性）；审计重放时用 setSeed(seed) 注入确定性 PRNG。
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0;
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  let nextRandom = function () { return Math.random(); };
+
+  // seed 为数字时启用确定性生成器；null/undefined 恢复默认随机源
+  function setSeed(seed) {
+    nextRandom = (seed === null || seed === undefined) ? Math.random : mulberry32(seed);
+  }
+
   function electionTimeout() {
-    return CFG.ELECTION_MIN + Math.random() * (CFG.ELECTION_MAX - CFG.ELECTION_MIN);
+    return CFG.ELECTION_MIN + nextRandom() * (CFG.ELECTION_MAX - CFG.ELECTION_MIN);
   }
 
   // ---------------- 集群 ----------------
@@ -635,8 +655,7 @@
     schedule: schedule,
     tick: tick,
     resetClock: resetClock,
-    currentTime: currentTime
+    currentTime: currentTime,
+    setSeed: setSeed
   };
 })();
-
-
